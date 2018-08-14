@@ -1,14 +1,18 @@
 #include "DxLib.h"
+#include "draw.h"
 
 // プログラムは WinMain から始まります
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	if (DxLib_Init() == -1)		// ＤＸライブラリ初期化処理
-	{
-		return -1;			// エラーが起きたら直ちに終了
-	}
+	SetGraphMode(1280, 720, 32);	// 画面のサイズ
+	ChangeWindowMode(TRUE);			// ウィンドウモードにする
+	if (DxLib_Init() == -1) return -1;		// ＤＸライブラリ初期化処理
 
-	DrawPixel(320, 240, GetColor(255, 255, 255));	// 点を打つ
+
+	init_board_draw();
+
+	int p = LoadGraph("picture\\1.png");
+	girl_draw(p);
 
 	WaitKey();				// キー入力待ち
 
