@@ -4,9 +4,9 @@ using ll = long long;
 
 ll black_board;
 ll white_board;
-bool turn_black = true;
+bool turn_white = false;
 
-void draw_board(int p) {
+void draw_board(int &p) {
 	SetDrawScreen(DX_SCREEN_BACK);
 
 	ClearDrawScreen();
@@ -28,6 +28,159 @@ void draw_board(int p) {
 	DrawGraph(900, 450, p, FALSE);
 
 	ScreenFlip();
+}
+
+ll can_put(ll &mov) {
+	if ((black_board | white_board) & mov)return 0;		//着手箇所が空白で無い場合
+
+
+	ll rev = 0, r, mask;
+
+	if (turn_white) {						//白が打つ場合
+		r = 0;
+		mask = (mov >> 1) & 0x7f7f7f7f7f7f7f7f;	//右方向へ返せるかを調べる
+		while (mask != 0 && (mask & black_board) != 0) {	//黒石が連続する間
+			r |= mask;
+			mask = (mask >> 1) & 0x7f7f7f7f7f7f7f7f;
+		}
+		if (mask & white_board)rev |= r;				//白石があれば返す位置を確定する
+
+		r = 0;
+		mask = (mov >> 8) & 0x00ffffffffffffff;	//下方向へ返せるかを調べる
+		while (mask != 0 && (mask & black_board) != 0) {
+			r |= mask;
+			mask = (mask >> 8) & 0x00ffffffffffffff;
+		}
+		if (mask & white_board)rev |= r;
+
+		r = 0;
+		mask = (mov << 1) & 0xfefefefefefefefe;	//左方向へ返せるかを調べる
+		while (mask != 0 && (mask & black_board) != 0) {
+			r |= mask;
+			mask = (mask << 1) & 0xfefefefefefefefe;
+		}
+		if (mask & white_board)rev |= r;
+
+		r = 0;
+		mask = (mov << 8) & 0xffffffffffffff00;	//上方向へ返せるかを調べる
+		while (mask != 0 && (mask & black_board) != 0) {
+			r |= mask;
+			mask = (mask << 8) & 0xffffffffffffff00;
+		}
+		if (mask & white_board)rev |= r;
+
+		r = 0;
+		mask = (mov >> 9) & 0x007f7f7f7f7f7f7f;	//右下方向へ返せるかを調べる
+		while (mask != 0 && (mask & black_board) != 0) {
+			r |= mask;
+			mask = (mask >> 9) & 0x007f7f7f7f7f7f7f;
+		}
+		if (mask & white_board)rev |= r;
+
+		r = 0;
+		mask = (mov >> 7) & 0x00fefefefefefefe;	//左下方向へ返せるかを調べる
+		while (mask != 0 && (mask & black_board) != 0) {
+			r |= mask;
+			mask = (mask >> 7) & 0x00fefefefefefefe;
+		}
+		if (mask & white_board)rev |= r;
+
+		r = 0;
+		mask = (mov << 9) & 0xfefefefefefefe00;	//左上方向へ返せるかを調べる
+		while (mask != 0 && (mask & black_board) != 0) {
+			r |= mask;
+			mask = (mask << 9) & 0xfefefefefefefe00;
+		}
+		if (mask & white_board)rev |= r;
+
+		r = 0;
+		mask = (mov << 7) & 0x7f7f7f7f7f7f7f00;	//右上方向へ返せるかを調べる
+		while (mask != 0 && (mask & black_board) != 0) {
+			r |= mask;
+			mask = (mask << 7) & 0x7f7f7f7f7f7f7f00;
+		}
+		if (mask & white_board)rev |= r;
+	}
+	else {										//黒が打つ場合
+		r = 0;
+		mask = (mov >> 1) & 0x7f7f7f7f7f7f7f7f;	//右方向へ返せるかを調べる
+		while (mask != 0 && (mask & white_board) != 0) {	//白石が連続する間
+			r |= mask;
+			mask = (mask >> 1) & 0x7f7f7f7f7f7f7f7f;
+		}
+		if (mask & black_board)rev |= r;				//黒石があれば返す位置を確定する
+
+		r = 0;
+		mask = (mov >> 8) & 0x00ffffffffffffff;	//下方向へ返せるかを調べる
+		while (mask != 0 && (mask & white_board) != 0) {
+			r |= mask;
+			mask = (mask >> 8) & 0x00ffffffffffffff;
+		}
+		if (mask & black_board)rev |= r;
+
+		r = 0;
+		mask = (mov << 1) & 0xfefefefefefefefe;	//左方向へ返せるかを調べる
+		while (mask != 0 && (mask & white_board) != 0) {
+			r |= mask;
+			mask = (mask << 1) & 0xfefefefefefefefe;
+		}
+		if (mask & black_board)rev |= r;
+
+		r = 0;
+		mask = (mov << 8) & 0xffffffffffffff00;	//上方向へ返せるかを調べる
+		while (mask != 0 && (mask & white_board) != 0) {
+			r |= mask;
+			mask = (mask << 8) & 0xffffffffffffff00;
+		}
+		if (mask & black_board)rev |= r;
+
+		r = 0;
+		mask = (mov >> 9) & 0x007f7f7f7f7f7f7f;	//右下方向へ返せるかを調べる
+		while (mask != 0 && (mask & white_board) != 0) {
+			r |= mask;
+			mask = (mask >> 9) & 0x007f7f7f7f7f7f7f;
+		}
+		if (mask & black_board)rev |= r;
+
+		r = 0;
+		mask = (mov >> 7) & 0x00fefefefefefefe;	//左下方向へ返せるかを調べる
+		while (mask != 0 && (mask & white_board) != 0) {
+			r |= mask;
+			mask = (mask >> 7) & 0x00fefefefefefefe;
+		}
+		if (mask & black_board)rev |= r;
+
+		r = 0;
+		mask = (mov << 9) & 0xfefefefefefefe00;	//左上方向へ返せるかを調べる
+		while (mask != 0 && (mask & white_board) != 0) {
+			r |= mask;
+			mask = (mask << 9) & 0xfefefefefefefe00;
+		}
+		if (mask & black_board)rev |= r;
+
+		r = 0;
+		mask = (mov << 7) & 0x7f7f7f7f7f7f7f00;	//右上方向へ返せるかを調べる
+		while (mask != 0 && (mask & white_board) != 0) {
+			r |= mask;
+			mask = (mask << 7) & 0x7f7f7f7f7f7f7f00;
+		}
+		if (mask & black_board)rev |= r;
+	}
+
+	return rev;
+}
+
+void put_stone(ll &mov, ll &rev) {
+	if (turn_white) {
+		white_board ^= mov | rev;
+		black_board ^= rev;
+	}
+	else {
+		black_board ^= mov | rev;
+		white_board ^= rev;
+	}
+
+	turn_white = !turn_white;
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -57,19 +210,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			for (int y = 0; y < 8; y++) {
 				for (int x = 0; x < 8; x++) {
 					if (52 + x * 66 <= mouse_x && mouse_x < 117 + x * 66 && 52 + y * 66 <= mouse_y && mouse_y < 117 + y * 66) {
-						if ((black_board & (1LL << (8 * (7 - y) + 7 - x))) || (white_board & (1LL << (8 * (7 - y) + 7 - x)))) continue;
-						if (turn_black) {
-							black_board |= 1LL << (8 * (7 - y) + 7 - x);
+						ll mov = 1LL << (8 * (7 - y) + 7 - x), rev = can_put(mov);
+						if (rev) {
+							put_stone(mov, rev);
+							draw_board(girl_pic);
+							WaitTimer(200);
 						}
-						else {
-							white_board |= 1LL << (8 * (7 - y) + 7 - x);
-						}
-						turn_black = !turn_black;
-
-						draw_board(girl_pic);
-
-						WaitTimer(200);
-
 						return;
 					}
 				}
