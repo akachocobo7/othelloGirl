@@ -1,9 +1,15 @@
 #include "DxLib.h"
+#include <intrin.h>
 
 using ll = long long;
+using namespace std;
 
 ll black_board;
 ll white_board;
+int put_count;
+int girl_picture;
+const int BLACK_STONE = 1;
+const int WHITE_STONE = -1;
 bool turn_white = false;
 
 void draw_board(int &p) {
@@ -27,7 +33,20 @@ void draw_board(int &p) {
 
 	DrawGraph(900, 450, p, FALSE);
 
+	DrawBoxAA(900, 200, 1000, 300, GetColor(255, 192, 203), TRUE);
+	DrawString(910, 225, "リセット", GetColor(0, 0, 0));
+
 	ScreenFlip();
+}
+
+void init_board() {
+	black_board = 0x0000000810000000;
+	white_board = 0x0000001008000000;
+
+	put_count = 0;
+	turn_white = false;
+
+	draw_board(girl_picture);
 }
 
 ll can_put(ll &mov) {
@@ -183,6 +202,56 @@ void put_stone(ll &mov, ll &rev) {
 	turn_white = !turn_white;
 }
 
+ll count_stone(const int &stone) {
+	return __popcnt64((stone == BLACK_STONE) ? black_board : white_board);
+}
+
+void input_mouse() {
+	if (GetMouseInput() & MOUSE_INPUT_LEFT) {
+		int mouse_x, mouse_y;
+		GetMousePoint(&mouse_x, &mouse_y);
+
+		[&] {
+			for (int y = 0; y < 8; y++) {
+				for (int x = 0; x < 8; x++) {
+					if (52 + x * 66 <= mouse_x && mouse_x < 117 + x * 66 && 52 + y * 66 <= mouse_y && mouse_y < 117 + y * 66) {
+						ll mov = 1LL << (8 * (7 - y) + 7 - x), rev = can_put(mov);
+						if (rev) {
+							put_stone(mov, rev);
+							put_count++;
+							// printfDx("%d", put_count);
+							draw_board(girl_picture);
+							WaitTimer(200);
+						}
+						return;
+					}
+				}
+			}
+		}();
+
+		if (900 <= mouse_x && mouse_x < 1000 && 200 <= mouse_y && mouse_y < 300) {
+			init_board();
+		}
+	}
+}
+
+void end_game() {
+	if (put_count == 60) {
+		ll b = count_stone(BLACK_STONE);
+		ll w = count_stone(WHITE_STONE);
+		
+		if (b > w) {
+			DrawString(700, 150, "黒の勝ちです", GetColor(0, 0, 0));
+		}
+		else if (b < w) {
+			DrawString(700, 150, "白の勝ちです", GetColor(0, 0, 0));
+		}
+		else {
+			DrawString(700, 150, "引き分けです", GetColor(0, 0, 0));
+		}
+	}
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	SetGraphMode(1280, 720, 32);	// 画面のサイズ
@@ -194,33 +263,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// ユーザーが×ボタンを押しても自動的に終了しないようにする
 	SetWindowUserCloseEnableFlag(FALSE);
 
-	int girl_pic = LoadGraph("picture\\1.png");
+	girl_picture = LoadGraph("picture\\1.png");
 
-	black_board = 0x0000001008000000;
-	white_board = 0x0000000810000000;
-
-	draw_board(girl_pic);
+	init_board();
 	
 	for (;;) {
-		if (GetMouseInput() & MOUSE_INPUT_LEFT) {
-			int mouse_x, mouse_y;
-			GetMousePoint(&mouse_x, &mouse_y);
+		input_mouse();
 
-			[&] {
-			for (int y = 0; y < 8; y++) {
-				for (int x = 0; x < 8; x++) {
-					if (52 + x * 66 <= mouse_x && mouse_x < 117 + x * 66 && 52 + y * 66 <= mouse_y && mouse_y < 117 + y * 66) {
-						ll mov = 1LL << (8 * (7 - y) + 7 - x), rev = can_put(mov);
-						if (rev) {
-							put_stone(mov, rev);
-							draw_board(girl_pic);
-							WaitTimer(200);
-						}
-						return;
-					}
-				}
-			}}();
-		}
+		end_game();
 
 		// ×ボタンかエンターキーを押すと終了
 		if (GetWindowUserCloseFlag(TRUE) || CheckHitKey(KEY_INPUT_RETURN)) {
