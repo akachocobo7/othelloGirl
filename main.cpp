@@ -497,11 +497,126 @@ int value_stone_place() {
 }
 
 int value_can_put() {
-	return 0;
+	int value = 0;
+
+	for (ll mov = 0x8000000000000000; mov != 0; mov = (mov >> 1) & 0x7fffffffffffffff) {
+		if (can_put(mov)) value++;
+	}
+
+	if (is_white_turn) return value;
+	else return -value;
 }
 
 int value_fixed_stone() {
-	return 0;
+	ll i;
+	int value = 0;
+
+	if ((black_board | white_board) & 0x8000000000000000) {
+		if (black_board & 0x8000000000000000) {
+			i = 0x8000000000000000;
+			while (black_board & i) {
+				value += 1;
+				i = (i >> 1) & 0x7fffffffffffffff;
+			}
+			i = 0x8000000000000000;
+			while (black_board & i) {
+				value += 1;
+				i = (i >> 8) & 0x00ffffffffffffff;
+			}
+		}
+		else {
+			i = 0x8000000000000000;
+			while (white_board & i) {
+				value -= 1;
+				i = (i >> 1) & 0x7fffffffffffffff;
+			}
+			i = 0x8000000000000000;
+			while (white_board & i) {
+				value -= 1;
+				i = (i >> 8) & 0x00ffffffffffffff;
+			}
+		}
+	}
+	if ((black_board | white_board) & 0x0100000000000000) {
+		if (black_board & 0x0100000000000000) {
+			i = 0x0100000000000000;
+			while (black_board & i) {
+				value += 1;
+				i = (i << 1) & 0xfffffffffffffffe;
+			}
+			i = 0x0100000000000000;
+			while (black_board & i) {
+				value += 1;
+				i = (i >> 8) & 0x00ffffffffffffff;
+			}
+		}
+		else {
+			i = 0x0100000000000000;
+			while (white_board & i) {
+				value -= 1;
+				i = (i << 1) & 0xfffffffffffffffe;
+			}
+			i = 0x0100000000000000;
+			while (white_board & i) {
+				value -= 1;
+				i = (i >> 8) & 0x00ffffffffffffff;
+			}
+		}
+	}
+	if ((black_board | white_board) & 0x0000000000000080) {
+		if (black_board & 0x0000000000000080) {
+			i = 0x0000000000000080;
+			while (black_board & i) {
+				value += 1;
+				i = (i >> 1) & 0x7fffffffffffffff;
+			}
+			i = 0x0000000000000080;
+			while (black_board & i) {
+				value += 1;
+				i = (i << 8) & 0xffffffffffffff00;
+			}
+		}
+		else {
+			i = 0x0000000000000080;
+			while (white_board & i) {
+				value -= 1;
+				i = (i >> 1) & 0x7fffffffffffffff;
+			}
+			i = 0x0000000000000080;
+			while (white_board & i) {
+				value -= 1;
+				i = (i << 8) & 0xffffffffffffff00;
+			}
+		}
+	}
+	if ((black_board | white_board) & 0x0000000000000001) {
+		if (black_board & 0x0000000000000001) {
+			i = 0x0000000000000001;
+			while (black_board & i) {
+				value += 1;
+				i = (i << 1) & 0xfffffffffffffffe;
+			}
+			i = 0x0000000000000001;
+			while (black_board & i) {
+				value += 1;
+				i = (i << 8) & 0xffffffffffffff00;
+			}
+		}
+		else {
+			i = 0x0000000000000001;
+			while (white_board & i) {
+				value -= 1;
+				i = (i << 1) & 0xfffffffffffffffe;
+			}
+			i = 0x0000000000000001;
+			while (white_board & i) {
+				value -= 1;
+				i = (i << 8) & 0xffffffffffffff00;
+			}
+		}
+	}
+
+	return -value;
 }
 
 int game() {
