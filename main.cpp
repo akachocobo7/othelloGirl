@@ -1,5 +1,6 @@
 #include "DxLib.h"
 #include <intrin.h>
+#include <vector>
 
 using ll = long long;
 using namespace std;
@@ -11,15 +12,33 @@ int font_title;
 int girl_picture;
 const int BLACK_STONE = 1;
 const int WHITE_STONE = -1;
-bool turn_white = false;
-bool AI_color_white = true;
+bool is_white_turn = false;
+bool is_AI_color_white = true;
 bool now_playing_game = false;
+int INF = 1e9;
+int search_depth;
+vector<ll> stone_empty_place;
+vector<bool> stone_empty_place_used;
+
+const int SEARCH_LV = 5;
+const int FINAL_STAGE_NUM = 48;
+const int value_place[64] = {
+	150, -10, 10,  5,  5, 10, -10, 150,
+	-10,-200,  2,  1,  1,  2,-200, -10,
+	 10,   2,  0,  1,  1,  0,   2,  10,
+	  5,   1,  1,  0,  0,  1,   1,   5,
+	  5,   1,  1,  0,  0,  1,   1,   5,
+	 10,   2,  0,  1,  1,  0,   2,  10,
+	-10,-200,  2,  1,  1,  2,-200, -10,
+	150, -10, 10,  5,  5, 10, -10, 150
+};
 
 void draw_board();
 void init_board();
 ll can_put(ll &mov);
 void put_stone(ll &mov, ll &rev);
-ll count_stone(const int &stone);
+void ando(ll &mov, ll &rev);
+int count_stone(const int &stone);
 void end_game();
 int mouse_input_in_game();
 void draw_title();
@@ -27,6 +46,11 @@ int mouse_input_in_title();
 void title();
 void othello_AI();
 int game();
+ll nega_max(int depth, bool is_put_before_this, int alpha, int beta);
+int board_value();
+int value_stone_place();
+int value_can_put();
+int value_fixed_stone();
 
 void draw_board() {
 	SetDrawScreen(DX_SCREEN_BACK);
@@ -60,18 +84,18 @@ void init_board() {
 	white_board = 0x0000001008000000;
 
 	put_count = 0;
-	turn_white = false;
+	is_white_turn = false;
 
 	draw_board();
 }
 
 ll can_put(ll &mov) {
-	if ((black_board | white_board) & mov)return 0;		//着手箇所が空白で無い場合
+	if ((black_board | white_board) & mov)return 0;		//着手箇所が空白でない場合
 
 
 	ll rev = 0, r, mask;
 
-	if (turn_white) {						//白が打つ場合
+	if (is_white_turn) {						//白が打つ場合
 		r = 0;
 		mask = (mov >> 1) & 0x7f7f7f7f7f7f7f7f;	//右方向へ返せるかを調べる
 		while (mask != 0 && (mask & black_board) != 0) {	//黒石が連続する間
@@ -206,7 +230,7 @@ ll can_put(ll &mov) {
 }
 
 void put_stone(ll &mov, ll &rev) {
-	if (turn_white) {
+	if (is_white_turn) {
 		white_board ^= mov | rev;
 		black_board ^= rev;
 	}
@@ -215,10 +239,23 @@ void put_stone(ll &mov, ll &rev) {
 		white_board ^= rev;
 	}
 
-	turn_white = !turn_white;
+	is_white_turn = !is_white_turn;
 }
 
-ll count_stone(const int &stone) {
+void ando(ll &mov, ll &rev) {
+	is_white_turn = !is_white_turn;
+
+	if (is_white_turn) {
+		white_board ^= mov | rev;
+		black_board ^= rev;
+	}
+	else {
+		black_board ^= mov | rev;
+		white_board ^= rev;
+	}
+}
+
+int count_stone(const int &stone) {
 	return __popcnt64((stone == BLACK_STONE) ? black_board : white_board);
 }
 
@@ -229,10 +266,10 @@ void end_game() {
 		if (can_put(mov))return;
 		mov = (mov >> 1) & 0x7fffffffffffffff;
 	}
-	turn_white = !turn_white;
+	is_white_turn = !is_white_turn;
 	mov = 0x8000000000000000;
 	for (int i = 0; i < 64; i++) {
-		if (can_put(mov)) { turn_white = !turn_white;  return; }
+		if (can_put(mov)) { is_white_turn = !is_white_turn;  return; }
 		mov = (mov >> 1) & 0x7fffffffffffffff;
 	}
 
@@ -267,9 +304,8 @@ int mouse_input_in_game() {
 					if (rev) {
 						put_stone(mov, rev);
 						put_count++;
-						printfDx("%d", put_count);
+						// printfDx("%d", put_count);
 						draw_board();
-						end_game();
 						return 1;
 					}
 					return 0;
@@ -308,13 +344,13 @@ int mouse_input_in_title() {
 		GetMousePoint(&mouse_x, &mouse_y);
 
 		if (300 <= mouse_x && mouse_x < 400 && 300 <= mouse_y && mouse_y < 400) {
-			AI_color_white = true;
+			is_AI_color_white = true;
 			now_playing_game = true;
 			init_board();
 			return 1;
 		}
 		else if (300 <= mouse_x && mouse_x < 400 && 500 <= mouse_y && mouse_y < 600) {
-			AI_color_white = false;
+			is_AI_color_white = false;
 			now_playing_game = true;
 			init_board();
 			othello_AI();
@@ -344,42 +380,137 @@ void title() {
 }
 
 void othello_AI() {
-	ll mov = 0x8000000000000000;
+	ll mov;
 
-	int i;
-	for (i = 0; i < 64; i++) {
+	// 打てないならパス
+	for (mov = 0x8000000000000000; mov != 0; mov = (mov >> 1) & 0x7fffffffffffffff) {
+		if (can_put(mov)) break;
+	}
+	if (!mov) return;
+
+	stone_empty_place.clear();
+	for (mov = 0x8000000000000000; mov != 0; mov = (mov >> 1) & 0x7fffffffffffffff) {
+		if (!((black_board | white_board) & mov)) {
+			stone_empty_place.push_back(mov);
+		}
+	}
+	stone_empty_place_used.assign(stone_empty_place.size(), false);
+
+	mov = nega_max(search_depth = min(SEARCH_LV, 60 - put_count), TRUE, -INF, INF);
+
+	ll rev = can_put(mov);
+	put_stone(mov, rev);
+	put_count++;
+	draw_board();
+
+	// 相手が打てないなら、もう一度
+	for (mov = 0x8000000000000000; mov != 0; mov = (mov >> 1) & 0x7fffffffffffffff) {
+		if (can_put(mov))return;
+	}
+	is_white_turn = !is_white_turn;
+	othello_AI();
+}
+
+ll nega_max(int depth, bool is_put_before_this, int alpha, int beta) {
+	if (depth == 0) return -board_value();
+
+	int max = alpha;
+	bool is_put = false;
+	ll best_mov;
+
+	for (int i = 0; i < stone_empty_place.size(); i++) {
+		if (stone_empty_place_used[i]) continue;
+
+		ll mov = stone_empty_place[i];
 		ll rev = can_put(mov);
 		if (rev) {
+			is_put = true;
 			put_stone(mov, rev);
-			put_count++;
-			printfDx("%d", put_count);
-			draw_board();
-			end_game();
-			break;
+			stone_empty_place_used[i] = true;
+			int tmp = -nega_max(depth - 1, TRUE, -beta, -max);
+			stone_empty_place_used[i] = false;
+			ando(mov, rev);
+
+			if (tmp >= beta) return tmp;
+			if (tmp > max) {
+				max = tmp;
+				best_mov = mov;
+			}
 		}
-		mov = (mov >> 1) & 0x7fffffffffffffff;
-	}
-	if (i == 64) {
-		turn_white = !turn_white;
-		return;
 	}
 
-	mov = 0x8000000000000000;
-	for (i = 0; i < 64; i++) {
-		if (can_put(mov))return;
-		mov = (mov >> 1) & 0x7fffffffffffffff;
+	if (is_put) {
+		if (depth == search_depth) return best_mov;
+		return max;
 	}
-	if (i == 64) {
-		turn_white = !turn_white;
-		othello_AI();
+	else if (!is_put_before_this) return -board_value();
+	else {
+		is_white_turn = !is_white_turn;
+		int tmp = -nega_max(depth - 1, FALSE, -beta, -max);
+		is_white_turn = !is_white_turn;
+		return tmp;
 	}
 }
 
+int board_value() {
+	int value = 0;
+	const int VSP = 1, VCP = 40, VFS = 45;	// 評価値の重み
+
+	if (put_count >= FINAL_STAGE_NUM) {
+		value += count_stone(WHITE_STONE) - count_stone(BLACK_STONE);
+	}
+	else {
+		value += value_stone_place() * VSP;
+		value += value_can_put() * VCP;
+		value += value_fixed_stone() *  VFS;
+	}
+
+	if (!is_AI_color_white) value = -value;		// AIが黒なら反転
+
+	return value;
+}
+
+int value_stone_place() {
+	int value = 0, c = 0;
+
+	if (is_AI_color_white) {
+		if (__popcnt64(white_board) >= 1) c = 0;		// 全滅対策
+		else if (__popcnt64(black_board) == 0) c = -50000;		// 相手を全滅させたら評価値大アップ
+		else c = 50000;
+	}
+	else {
+		if (__popcnt64(black_board) >= 1) c = 0;
+		else if (__popcnt64(white_board) == 0) c = 50000;
+		else c = -50000;
+	}
+
+	ll b = black_board, w = white_board;
+	for (int i = 63; i >= 0; i--) {
+		value += (b & 1) * value_place[i];
+		value -= (w & 1) * value_place[i];
+
+		b >>= 1;
+		w >>= 1;
+	}
+
+	return -(value + c);
+}
+
+int value_can_put() {
+	return 0;
+}
+
+int value_fixed_stone() {
+	return 0;
+}
+
 int game() {
+	Sleep(500);
+
 	for (;;) {
 		if (mouse_input_in_game()) {
-			printfDx("aiueo");
 			othello_AI();
+			end_game();
 		}
 		if (!now_playing_game) {
 			return 0;
