@@ -73,7 +73,7 @@ void draw_board() {
 
 	DrawGraph(900, 450, girl_picture, FALSE);
 
-	DrawBoxAA(900, 200, 1000, 300, GetColor(255, 192, 203), TRUE);
+	DrawBoxAA(900, 200, 1000, 300, GetColor(255, 255, 255), TRUE);
 	DrawString(910, 225, "終了", GetColor(0, 0, 0));
 
 	ScreenFlip();
@@ -276,7 +276,7 @@ void end_game() {
 
 	ll b = count_stone(BLACK_STONE);
 	ll w = count_stone(WHITE_STONE);
-
+	
 	if (b > w) {
 		MessageBox(NULL, "黒の勝ちです", "othelloGirl", MB_OK);
 		// DrawString(700, 150, "黒の勝ちです", GetColor(0, 0, 0));
@@ -289,6 +289,8 @@ void end_game() {
 		MessageBox(NULL, "引き分けです", "othelloGirl", MB_OK);
 		// DrawString(700, 150, "引き分けです", GetColor(0, 0, 0));
 	}
+
+	PlaySoundFile("sound\\put.mp3", DX_PLAYTYPE_BACK);
 }
 
 int mouse_input_in_game() {
@@ -305,6 +307,7 @@ int mouse_input_in_game() {
 						put_stone(mov, rev);
 						put_count++;
 						// printfDx("%d", put_count);
+						PlaySoundFile("sound\\put.mp3", DX_PLAYTYPE_BACK);
 						draw_board();
 						return 1;
 					}
@@ -314,6 +317,7 @@ int mouse_input_in_game() {
 		}
 
 		if (900 <= mouse_x && mouse_x < 1000 && 200 <= mouse_y && mouse_y < 300) {
+			PlaySoundFile("sound\\reset.mp3", DX_PLAYTYPE_BACK);
 			now_playing_game = false;
 		}
 	}
@@ -328,9 +332,9 @@ void draw_title() {
 
 	DrawStringToHandle(100, 100, "タイトル", GetColor(0, 0, 0), font_title);
 
-	DrawBoxAA(300, 300, 400, 400, GetColor(255, 192, 203), TRUE);
+	DrawBoxAA(300, 300, 400, 400, GetColor(255, 255, 255), TRUE);
 	DrawString(305, 350, "プレイヤー:黒", GetColor(0, 0, 0));
-	DrawBoxAA(300, 500, 400, 600, GetColor(255, 192, 203), TRUE);
+	DrawBoxAA(300, 500, 400, 600, GetColor(255, 255, 255), TRUE);
 	DrawString(305, 550, "プレイヤー:白", GetColor(0, 0, 0));
 
 	DrawGraph(900, 450, 0, FALSE);
@@ -346,13 +350,16 @@ int mouse_input_in_title() {
 		if (300 <= mouse_x && mouse_x < 400 && 300 <= mouse_y && mouse_y < 400) {
 			is_AI_color_white = true;
 			now_playing_game = true;
+			PlaySoundFile("sound\\start.mp3", DX_PLAYTYPE_BACK);
 			init_board();
 			return 1;
 		}
 		else if (300 <= mouse_x && mouse_x < 400 && 500 <= mouse_y && mouse_y < 600) {
 			is_AI_color_white = false;
 			now_playing_game = true;
+			PlaySoundFile("sound\\start.mp3", DX_PLAYTYPE_BACK);
 			init_board();
+			Sleep(1200);
 			othello_AI();
 			return 1;
 		}
@@ -396,11 +403,12 @@ void othello_AI() {
 	}
 	stone_empty_place_used.assign(stone_empty_place.size(), false);
 
-	mov = nega_max(search_depth = min(SEARCH_LV, 60 - put_count), TRUE, -INF, INF);
+	mov = nega_max(search_depth = ((put_count < FINAL_STAGE_NUM)? SEARCH_LV : 60 - put_count), TRUE, -INF, INF);
 
 	ll rev = can_put(mov);
 	put_stone(mov, rev);
 	put_count++;
+	PlaySoundFile("sound\\put.mp3", DX_PLAYTYPE_BACK);
 	draw_board();
 
 	// 相手が打てないなら、もう一度
@@ -625,6 +633,7 @@ int game() {
 	for (;;) {
 		if (mouse_input_in_game()) {
 			othello_AI();
+			Sleep(200);
 			end_game();
 		}
 		if (!now_playing_game) {
@@ -643,7 +652,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
 	SetGraphMode(1280, 720, 32);	// 画面のサイズ
 	ChangeWindowMode(TRUE);			// ウィンドウモードにする
-	SetBackgroundColor(229, 182, 203);
+	SetBackgroundColor(255, 192, 203);
 
 	if (DxLib_Init() == -1) return -1;		// ＤＸライブラリ初期化処理
 
