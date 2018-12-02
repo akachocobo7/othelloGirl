@@ -1,27 +1,72 @@
 #include "DxLib.h"
 #include <intrin.h>
 #include <vector>
+#include <random>
+#include <tuple>
+
 
 using ll = long long;
 using namespace std;
 
+
+int font_board_num;
+
+int girl_picture;
+int flower_flame;
+int title_picture;
+int black_turn_picture;
+int white_turn_picture;
+int reset_picture;
+int t_start;
+int t_thinking;
+int t_put1;
+int t_put2;
+int t_put3;
+int t_no_put;
+int t_win;
+int t_lose;
+int t_draw;
+
+enum girl_status {
+	start,
+	thinking,
+	put,
+	no_put,
+	win,
+	lose,
+	draw
+};
+girl_status girl_text;
+
+int start_sound;
+int reset_sound;
+int put_sound;
+int end_sound;
+
+random_device rnd;
+mt19937 mt(rnd());
+uniform_int_distribution<> rnd3(1, 3);
+
 ll black_board;
 ll white_board;
 int put_count;
-int font_title;
-int girl_picture;
-const int BLACK_STONE = 1;
-const int WHITE_STONE = -1;
 bool is_white_turn = false;
 bool is_AI_color_white = true;
 bool now_playing_game = false;
-int INF = 1e9;
 int search_depth;
 vector<ll> stone_empty_place;
 vector<bool> stone_empty_place_used;
+char put_text[30] = "女の子が打った場所: ";
 
+const int SCREEN_WIDTH = 1280;
+const int SCREEN_HEIGHT = 720;
+const int BOARD_X = 150;
+const int BOARD_Y = 100;
+const int BLACK_STONE = 1;
+const int WHITE_STONE = -1;
+const int INF = 1e9;
 const int SEARCH_LV = 5;
-const int FINAL_STAGE_NUM = 48;
+const int FINAL_STAGE_NUM = 43;
 const int value_place[64] = {
 	150, -10, 10,  5,  5, 10, -10, 150,
 	-10,-200,  2,  1,  1,  2,-200, -10,
@@ -35,9 +80,9 @@ const int value_place[64] = {
 
 void draw_board();
 void init_board();
-ll can_put(ll &mov);
-void put_stone(ll &mov, ll &rev);
-void ando(ll &mov, ll &rev);
+ll can_put(const ll &mov);
+void put_stone(const ll &mov, const ll &rev);
+void ando(const ll &mov, const ll &rev);
 int count_stone(const int &stone);
 void end_game();
 int mouse_input_in_game();
@@ -45,36 +90,80 @@ void draw_title();
 int mouse_input_in_title();
 void title();
 void othello_AI();
-int game();
-ll nega_max(int depth, bool is_put_before_this, int alpha, int beta);
+int play_game();
+ll nega_max(const int depth, const bool is_put_before_this, const int alpha, const int beta);
 int board_value();
 int value_stone_place();
 int value_can_put();
 int value_fixed_stone();
+ll speed_preferred_serch(const int depth, const bool is_put_before_this, const int alpha, const int beta);
 
 void draw_board() {
 	SetDrawScreen(DX_SCREEN_BACK);
 
 	ClearDrawScreen();
 
-	DrawBox(50, 50, 581, 581, GetColor(255, 255, 255), FALSE);
+	for (int i = 0; i < 8; i++) {
+		char c[2] = { 'A' + i };
+		DrawStringToHandle(BOARD_X + 66 * i + 28, BOARD_Y - 28, c, GetColor(0, 0, 0), font_board_num);
+		c[0] = '1' + i;
+		DrawStringToHandle(BOARD_X - 20, BOARD_Y + 66 * i + 24, c, GetColor(0, 0, 0), font_board_num);
+	}
+
+	DrawBox(BOARD_X, BOARD_Y, BOARD_X + 531, BOARD_Y + 531, GetColor(255, 255, 255), FALSE);
 	for (int y = 0; y < 8; y++) {
 		for (int x = 0; x < 8; x++) {
-			DrawBox(51 + x * 66, 51 + y * 66, 118 + x * 66, 118 + y * 66, GetColor(255, 255, 255), FALSE);
-			DrawBox(52 + x * 66, 52 + y * 66, 117 + x * 66, 117 + y * 66, GetColor(0, 94, 21), TRUE);
+			DrawBox((BOARD_X + 1) + x * 66, (BOARD_Y + 1) + y * 66, (BOARD_X + 68) + x * 66, (BOARD_Y + 68) + y * 66, GetColor(255, 255, 255), FALSE);
+			DrawBox((BOARD_X + 2) + x * 66, (BOARD_Y + 2) + y * 66, (BOARD_X + 67) + x * 66, (BOARD_Y + 67) + y * 66, GetColor(0, 94, 21), TRUE);
 			if ((black_board >> (63 - (y * 8 + x))) & 1) {
-				DrawCircle(52 + x * 66 + 32, 52 + y * 66 + 32, 30, GetColor(0, 0, 0), TRUE);
+				DrawCircle((BOARD_X + 2) + x * 66 + 32, (BOARD_Y + 2) + y * 66 + 32, 30, GetColor(0, 0, 0), TRUE);
 			}
 			if ((white_board >> (63 - (y * 8 + x))) & 1) {
-				DrawCircle(52 + x * 66 + 32, 52 + y * 66 + 32, 30, GetColor(255, 255, 255), TRUE);
+				DrawCircle((BOARD_X + 2) + x * 66 + 32, (BOARD_Y + 2) + y * 66 + 32, 30, GetColor(255, 255, 255), TRUE);
 			}
 		}
 	}
 
-	DrawGraph(900, 450, girl_picture, FALSE);
+	DrawGraph(800, 400, girl_picture, TRUE);
+	switch (girl_text) {
+		case start:
+			DrawGraph(850, 310, t_start, TRUE);
+			break;
+		case thinking:
+			DrawGraph(850, 310, t_thinking, TRUE);
+			break;
+		case put:
+			{
+				int t = rnd3(mt);
+				if (t == 1) {
+					DrawGraph(850, 310, t_put1, TRUE);
+				}
+				else if (t == 2) {
+					DrawGraph(850, 310, t_put2, TRUE);
+				}
+				else {
+					DrawGraph(850, 310, t_put3, TRUE);
+				}
+			}
+			break;
+		case no_put:
+			DrawGraph(850, 310, t_no_put, TRUE);
+			break;
+		case win:
+			DrawGraph(850, 310, t_win, TRUE);
+			break;
+		case lose:
+			DrawGraph(850, 310, t_lose, TRUE);
+			break;
+		case draw:
+			DrawGraph(850, 310, t_start, TRUE);
+			break;
+		default:
+			break;
+	}
+	DrawExtendGraph(900, 100, 1000, 140, reset_picture, FALSE);
 
-	DrawBoxAA(900, 200, 1000, 300, GetColor(255, 255, 255), TRUE);
-	DrawString(910, 225, "終了", GetColor(0, 0, 0));
+	DrawFormatStringToHandle(SCREEN_WIDTH - 400, SCREEN_HEIGHT - 50, GetColor(0, 0, 0), font_board_num, "%s", put_text);
 
 	ScreenFlip();
 }
@@ -86,10 +175,16 @@ void init_board() {
 	put_count = 0;
 	is_white_turn = false;
 
+	for (int i = 20; i < 29; i++) {
+		put_text[i] = '*';
+	}
+
+	girl_text = start;
+
 	draw_board();
 }
 
-ll can_put(ll &mov) {
+ll can_put(const ll &mov) {
 	if ((black_board | white_board) & mov)return 0;		//着手箇所が空白でない場合
 
 
@@ -229,7 +324,7 @@ ll can_put(ll &mov) {
 	return rev;
 }
 
-void put_stone(ll &mov, ll &rev) {
+void put_stone(const ll &mov, const ll &rev) {
 	if (is_white_turn) {
 		white_board ^= mov | rev;
 		black_board ^= rev;
@@ -242,7 +337,7 @@ void put_stone(ll &mov, ll &rev) {
 	is_white_turn = !is_white_turn;
 }
 
-void ando(ll &mov, ll &rev) {
+void ando(const ll &mov, const ll &rev) {
 	is_white_turn = !is_white_turn;
 
 	if (is_white_turn) {
@@ -278,19 +373,31 @@ void end_game() {
 	ll w = count_stone(WHITE_STONE);
 	
 	if (b > w) {
+		if (!is_AI_color_white) {
+			girl_text = win;
+		}
+		else {
+			girl_text = lose;
+		}
+		draw_board();
 		MessageBox(NULL, "黒の勝ちです", "othelloGirl", MB_OK);
-		// DrawString(700, 150, "黒の勝ちです", GetColor(0, 0, 0));
 	}
 	else if (b < w) {
+		if (is_AI_color_white) {
+			girl_text = win;
+		}
+		else {
+			girl_text = lose;
+		}
+		draw_board();
 		MessageBox(NULL, "白の勝ちです", "othelloGirl", MB_OK);
-		// DrawString(700, 150, "白の勝ちです", GetColor(0, 0, 0));
 	}
 	else {
+		girl_text = draw;
+		draw_board();
 		MessageBox(NULL, "引き分けです", "othelloGirl", MB_OK);
-		// DrawString(700, 150, "引き分けです", GetColor(0, 0, 0));
 	}
-
-	PlaySoundFile("sound\\put.mp3", DX_PLAYTYPE_BACK);
+	PlaySoundMem(end_sound, DX_PLAYTYPE_BACK);
 }
 
 int mouse_input_in_game() {
@@ -301,13 +408,14 @@ int mouse_input_in_game() {
 		
 		for (int y = 0; y < 8; y++) {
 			for (int x = 0; x < 8; x++) {
-				if (52 + x * 66 <= mouse_x && mouse_x < 117 + x * 66 && 52 + y * 66 <= mouse_y && mouse_y < 117 + y * 66) {
+				if (BOARD_X + x * 66 <= mouse_x && mouse_x < (BOARD_X + 65) + x * 66 && BOARD_Y + y * 66 <= mouse_y && mouse_y < (BOARD_Y + 65) + y * 66) {
 					ll mov = 1LL << (8 * (7 - y) + 7 - x), rev = can_put(mov);
 					if (rev) {
 						put_stone(mov, rev);
 						put_count++;
 						// printfDx("%d", put_count);
-						PlaySoundFile("sound\\put.mp3", DX_PLAYTYPE_BACK);
+						PlaySoundMem(put_sound, DX_PLAYTYPE_BACK);
+						girl_text = thinking;
 						draw_board();
 						return 1;
 					}
@@ -316,8 +424,8 @@ int mouse_input_in_game() {
 			}
 		}
 
-		if (900 <= mouse_x && mouse_x < 1000 && 200 <= mouse_y && mouse_y < 300) {
-			PlaySoundFile("sound\\reset.mp3", DX_PLAYTYPE_BACK);
+		if (900 <= mouse_x && mouse_x < 1000 && 100 <= mouse_y && mouse_y < 140) {
+			PlaySoundMem(reset_sound, DX_PLAYTYPE_BACK);
 			now_playing_game = false;
 		}
 	}
@@ -330,12 +438,11 @@ void draw_title() {
 
 	ClearDrawScreen();
 
-	DrawStringToHandle(100, 100, "タイトル", GetColor(0, 0, 0), font_title);
-
-	DrawBoxAA(300, 300, 400, 400, GetColor(255, 255, 255), TRUE);
-	DrawString(305, 350, "プレイヤー:黒", GetColor(0, 0, 0));
-	DrawBoxAA(300, 500, 400, 600, GetColor(255, 255, 255), TRUE);
-	DrawString(305, 550, "プレイヤー:白", GetColor(0, 0, 0));
+	DrawExtendGraph(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, flower_flame, TRUE);
+	DrawExtendGraph(SCREEN_WIDTH / 2 - 250, SCREEN_HEIGHT / 2 - 250, SCREEN_WIDTH / 2 + 250, SCREEN_HEIGHT / 2 - 100, title_picture, TRUE);
+	DrawExtendGraph(SCREEN_WIDTH / 2 - 245, SCREEN_HEIGHT / 2 + 10, SCREEN_WIDTH / 2 + 245, SCREEN_HEIGHT / 2 + 120, black_turn_picture, FALSE);
+	DrawExtendGraph(SCREEN_WIDTH / 2 - 245, SCREEN_HEIGHT / 2 + 140, SCREEN_WIDTH / 2 + 245, SCREEN_HEIGHT / 2 + 250, black_turn_picture, FALSE);
+	DrawExtendGraph(SCREEN_WIDTH / 2 - 245, SCREEN_HEIGHT / 2 + 140, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 250, white_turn_picture, FALSE);
 
 	DrawGraph(900, 450, 0, FALSE);
 
@@ -347,19 +454,19 @@ int mouse_input_in_title() {
 		int mouse_x, mouse_y;
 		GetMousePoint(&mouse_x, &mouse_y);
 
-		if (300 <= mouse_x && mouse_x < 400 && 300 <= mouse_y && mouse_y < 400) {
+		if (SCREEN_WIDTH / 2 - 245 <= mouse_x && mouse_x < SCREEN_WIDTH / 2 + 245 && SCREEN_HEIGHT / 2 + 10 <= mouse_y && mouse_y < SCREEN_HEIGHT / 2 + 120) {
 			is_AI_color_white = true;
 			now_playing_game = true;
-			PlaySoundFile("sound\\start.mp3", DX_PLAYTYPE_BACK);
+			PlaySoundMem(start_sound, DX_PLAYTYPE_BACK);
 			init_board();
 			return 1;
 		}
-		else if (300 <= mouse_x && mouse_x < 400 && 500 <= mouse_y && mouse_y < 600) {
+		else if (SCREEN_WIDTH / 2 - 245 <= mouse_x && mouse_x < SCREEN_WIDTH / 2 + 245 && SCREEN_HEIGHT / 2 + 140 <= mouse_y && mouse_y < SCREEN_HEIGHT / 2 + 250) {
 			is_AI_color_white = false;
 			now_playing_game = true;
-			PlaySoundFile("sound\\start.mp3", DX_PLAYTYPE_BACK);
+			PlaySoundMem(start_sound, DX_PLAYTYPE_BACK);
 			init_board();
-			Sleep(1200);
+			Sleep(700);
 			othello_AI();
 			return 1;
 		}
@@ -373,7 +480,7 @@ void title() {
 
 	for (;;) {
 		if (mouse_input_in_title()) {
-			if (game() == -1) {
+			if (play_game() == -1) {
 				return;
 			}
 			draw_title();
@@ -393,7 +500,13 @@ void othello_AI() {
 	for (mov = 0x8000000000000000; mov != 0; mov = (mov >> 1) & 0x7fffffffffffffff) {
 		if (can_put(mov)) break;
 	}
-	if (!mov) return;
+	if (!mov) {
+		if (put_count < 60) {
+			girl_text = no_put;
+			draw_board();
+		}
+		return;
+	}
 
 	stone_empty_place.clear();
 	for (mov = 0x8000000000000000; mov != 0; mov = (mov >> 1) & 0x7fffffffffffffff) {
@@ -403,12 +516,31 @@ void othello_AI() {
 	}
 	stone_empty_place_used.assign(stone_empty_place.size(), false);
 
-	mov = nega_max(search_depth = ((put_count < FINAL_STAGE_NUM)? SEARCH_LV : 60 - put_count), TRUE, -INF, INF);
+	if (put_count >= FINAL_STAGE_NUM) {
+		mov = speed_preferred_serch(search_depth = 60 - put_count, TRUE, -INF, INF);
+	}
+	else{
+		mov = nega_max(search_depth = SEARCH_LV, TRUE, -INF, INF);
+	}
 
 	ll rev = can_put(mov);
 	put_stone(mov, rev);
 	put_count++;
-	PlaySoundFile("sound\\put.mp3", DX_PLAYTYPE_BACK);
+	PlaySoundMem(put_sound, DX_PLAYTYPE_BACK);
+
+	// AIが打った場所を画面右下に出力
+	for (int i = 0; i < 64; i++) {
+		if (mov & (1LL << (63 - i))) {
+			for (int j = 20; j < 26; j++) {
+				put_text[j] = put_text[j + 3];
+			}
+			put_text[27] = 'A' + (i % 8);
+			put_text[28] = '1' + (i / 8);
+			break;
+		}
+	}
+
+	girl_text = put;
 	draw_board();
 
 	// 相手が打てないなら、もう一度
@@ -419,7 +551,7 @@ void othello_AI() {
 	othello_AI();
 }
 
-ll nega_max(int depth, bool is_put_before_this, int alpha, int beta) {
+ll nega_max(const int depth, const bool is_put_before_this, const int alpha, const int beta) {
 	if (depth == 0) return -board_value();
 
 	int max = alpha;
@@ -455,6 +587,84 @@ ll nega_max(int depth, bool is_put_before_this, int alpha, int beta) {
 	else {
 		is_white_turn = !is_white_turn;
 		int tmp = -nega_max(depth - 1, FALSE, -beta, -max);
+		is_white_turn = !is_white_turn;
+		return tmp;
+	}
+}
+
+ll speed_preferred_serch(const int depth, const bool is_put_before_this, const int alpha, const int beta) {
+	if (depth == 0) return -board_value();
+
+	int max = alpha;
+	bool is_put = false;
+	ll best_mov;
+
+	if (depth >= 6) {
+		vector<tuple<int, int, ll>> p;
+
+		for(int i = 0; i < stone_empty_place.size(); i++){
+			if (stone_empty_place_used[i]) continue;
+
+			ll mov = stone_empty_place[i];
+			ll rev = can_put(mov);
+			if (rev) {
+				put_stone(mov, rev);
+				ll value = abs(value_can_put());
+				p.push_back(make_tuple(value, i, rev));
+				ando(mov, rev);
+			}
+		}
+
+		sort(p.begin(), p.end());
+
+		for (auto &x : p) {
+			ll mov = stone_empty_place[get<1>(x)];
+			ll rev = get<2>(x);
+			is_put = true;
+			put_stone(mov, rev);
+			stone_empty_place_used[get<1>(x)] = true;
+			int tmp = -speed_preferred_serch(depth - 1, TRUE, -beta, -max);
+			stone_empty_place_used[get<1>(x)] = false;
+			ando(mov, rev);
+
+			if (tmp >= beta) return tmp;
+			if (tmp > max) {
+				max = tmp;
+				best_mov = mov;
+			}
+		}
+	}
+	else{
+		for (int i = 0; i < stone_empty_place.size(); i++) {
+			if (stone_empty_place_used[i]) continue;
+
+			ll mov = stone_empty_place[i];
+			ll rev = can_put(mov);
+			if (rev) {
+				is_put = true;
+				put_stone(mov, rev);
+				stone_empty_place_used[i] = true;
+				int tmp = -speed_preferred_serch(depth - 1, TRUE, -beta, -max);
+				stone_empty_place_used[i] = false;
+				ando(mov, rev);
+
+				if (tmp >= beta) return tmp;
+				if (tmp > max) {
+					max = tmp;
+					best_mov = mov;
+				}
+			}
+		}
+	}
+
+	if (is_put) {
+		if (depth == search_depth) return best_mov;
+		return max;
+	}
+	else if (!is_put_before_this) return -board_value();
+	else {
+		is_white_turn = !is_white_turn;
+		int tmp = -speed_preferred_serch(depth - 1, FALSE, -beta, -max);
 		is_white_turn = !is_white_turn;
 		return tmp;
 	}
@@ -627,7 +837,7 @@ int value_fixed_stone() {
 	return -value;
 }
 
-int game() {
+int play_game() {
 	Sleep(500);
 
 	for (;;) {
@@ -648,9 +858,8 @@ int game() {
 	return 0;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
-{
-	SetGraphMode(1280, 720, 32);	// 画面のサイズ
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+	SetGraphMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32);	// 画面のサイズ
 	ChangeWindowMode(TRUE);			// ウィンドウモードにする
 	SetBackgroundColor(255, 192, 203);
 
@@ -659,12 +868,32 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// ユーザーが×ボタンを押しても自動的に終了しないようにする
 	SetWindowUserCloseEnableFlag(FALSE);
 
-	girl_picture = LoadGraph("picture\\1.png");
-	font_title = CreateFontToHandle(NULL, 70, 5);
+	girl_picture = LoadGraph("picture\\smale2.png");
+	flower_flame = LoadGraph("picture\\flower_flame.png");
+	title_picture = LoadGraph("picture\\title.png");
+	black_turn_picture = LoadGraph("picture\\black.png");
+	white_turn_picture = LoadGraph("picture\\white.png");
+	reset_picture = LoadGraph("picture\\reset.png");
+	t_start = LoadGraph("picture\\t_start.png");
+	t_thinking = LoadGraph("picture\\t_thinking.png");
+	t_put1 = LoadGraph("picture\\t_put1.png");
+	t_put2 = LoadGraph("picture\\t_put2.png");
+	t_put3 = LoadGraph("picture\\t_put3.png");
+	t_no_put = LoadGraph("picture\\t_no_put.png");
+	t_win = LoadGraph("picture\\t_win.png");
+	t_lose = LoadGraph("picture\\t_lose.png");
+	t_draw = LoadGraph("picture\\t_draw.png");
+
+	start_sound = LoadSoundMem("sound\\start.mp3");
+	put_sound = LoadSoundMem("sound\\put.mp3");
+	reset_sound = LoadSoundMem("sound\\reset.mp3");
+	end_sound = LoadSoundMem("sound\\end.mp3");
+
+	font_board_num = CreateFontToHandle(NULL, 24, -1);
 
 	title();
 
-	DeleteFontToHandle(font_title);
+	DeleteFontToHandle(font_board_num);
 
 	DxLib_End();				// ＤＸライブラリ使用の終了処理
 
