@@ -9,8 +9,10 @@ using ll = long long;
 using namespace std;
 
 
+// フォント
 int font_board_num;
 
+// 画像
 int girl_picture;
 int flower_flame;
 int title_picture;
@@ -27,6 +29,7 @@ int t_win;
 int t_lose;
 int t_draw;
 
+// 女の子のセリフ
 enum girl_status {
 	start,
 	thinking,
@@ -38,14 +41,16 @@ enum girl_status {
 };
 girl_status girl_text;
 
+// 音
 int start_sound;
 int reset_sound;
 int put_sound;
 int end_sound;
 
+// 乱数
 random_device rnd;
 mt19937 mt(rnd());
-uniform_int_distribution<> rnd3(1, 3);
+uniform_int_distribution<> rnd3(1, 3); // 1から3までの整数をランダムに
 
 ll black_board;
 ll white_board;
@@ -64,9 +69,9 @@ const int BOARD_X = 150;
 const int BOARD_Y = 100;
 const int BLACK_STONE = 1;
 const int WHITE_STONE = -1;
-const int INF = 1e9;
-const int SEARCH_LV = 5;
-const int FINAL_STAGE_NUM = 43;
+constexpr const int INF = (1 << 30);
+const int SEARCH_LV = 5;			// 探索する手数
+const int FINAL_STAGE_NUM = 43;		// 終盤が始まる手数
 const int value_place[64] = {
 	150, -10, 10,  5,  5, 10, -10, 150,
 	-10,-200,  2,  1,  1,  2,-200, -10,
@@ -78,31 +83,34 @@ const int value_place[64] = {
 	150, -10, 10,  5,  5, 10, -10, 150
 };
 
-void draw_board();
-void init_board();
-ll can_put(const ll &mov);
-void put_stone(const ll &mov, const ll &rev);
-void ando(const ll &mov, const ll &rev);
-int count_stone(const int &stone);
-void end_game();
-int mouse_input_in_game();
-void draw_title();
-int mouse_input_in_title();
-void title();
-void othello_AI();
-int play_game();
-ll nega_max(const int depth, const bool is_put_before_this, const int alpha, const int beta);
-int board_value();
-int value_stone_place();
-int value_can_put();
-int value_fixed_stone();
-ll speed_preferred_serch(const int depth, const bool is_put_before_this, const int alpha, const int beta);
+void draw_board();	// 盤面の描画
+void init_board();	// オセロを初期化
+ll can_put(const ll &mov);	// movの場所に石を置いて、石が返った位置にbitを立てて返す
+void put_stone(const ll &mov, const ll &rev);	// movで指定した場所に石を置き、revで指定した場所の石をひっくり返す
+void ando(const ll &mov, const ll &rev);	// 一手戻す
+int count_stone(const int &stone);	// 黒（または白）石の数を数える
+void end_game();	// ゲームの終了判定と終了処理
+int mouse_input_in_game();	// プレイ中にマウスをクリックしたときの処理
+void draw_title();	// タイトル画面の描画
+int mouse_input_in_title();	// タイトル画面でマウスをクリックしたときの処理
+void title();	// タイトルでの処理
+void othello_AI();	// AI
+int play_game();	// ゲーム中の処理
+ll nega_max(const int depth, const bool is_put_before_this, const int alpha, const int beta);	// nega_max探索
+int board_value();	// 盤面の価値を返す
+int value_stone_place();	// オセロの石の位置によって価値を計算
+int value_can_put();	// 石の置ける位置の数によって価値を計算
+int value_fixed_stone();	// 確定石の数によって価値を計算
+ll speed_preferred_serch(const int depth, const bool is_put_before_this, const int alpha, const int beta);	// 速さ優先探索
 
+// 盤面の描画
 void draw_board() {
+	// 描画中は画面に映さないようにする
 	SetDrawScreen(DX_SCREEN_BACK);
 
 	ClearDrawScreen();
 
+	// 盤面の上にA~H, 盤面の左に1~8を表示
 	for (int i = 0; i < 8; i++) {
 		char c[2] = { 'A' + i };
 		DrawStringToHandle(BOARD_X + 66 * i + 28, BOARD_Y - 28, c, GetColor(0, 0, 0), font_board_num);
@@ -110,6 +118,7 @@ void draw_board() {
 		DrawStringToHandle(BOARD_X - 20, BOARD_Y + 66 * i + 24, c, GetColor(0, 0, 0), font_board_num);
 	}
 
+	// 盤面を表示
 	DrawBox(BOARD_X, BOARD_Y, BOARD_X + 531, BOARD_Y + 531, GetColor(255, 255, 255), FALSE);
 	for (int y = 0; y < 8; y++) {
 		for (int x = 0; x < 8; x++) {
@@ -124,7 +133,9 @@ void draw_board() {
 		}
 	}
 
+	// 女の子の画像を表示
 	DrawGraph(800, 400, girl_picture, TRUE);
+	// 女の子のセリフを表示
 	switch (girl_text) {
 		case start:
 			DrawGraph(850, 310, t_start, TRUE);
@@ -161,13 +172,18 @@ void draw_board() {
 		default:
 			break;
 	}
+
+	// リセットボタンを表示
 	DrawExtendGraph(900, 100, 1000, 140, reset_picture, FALSE);
 
+	// 画面右下にAIが打った場所を表示
 	DrawFormatStringToHandle(SCREEN_WIDTH - 400, SCREEN_HEIGHT - 50, GetColor(0, 0, 0), font_board_num, "%s", put_text);
 
+	// 描画した画面を表示
 	ScreenFlip();
 }
 
+// オセロを初期化
 void init_board() {
 	black_board = 0x0000000810000000;
 	white_board = 0x0000001008000000;
@@ -184,6 +200,7 @@ void init_board() {
 	draw_board();
 }
 
+// movの場所に石を置いて、石が返った位置にbitを立てて返す
 ll can_put(const ll &mov) {
 	if ((black_board | white_board) & mov)return 0;		//着手箇所が空白でない場合
 
@@ -324,6 +341,7 @@ ll can_put(const ll &mov) {
 	return rev;
 }
 
+// movで指定した場所に石を置き、revで指定した場所の石をひっくり返す
 void put_stone(const ll &mov, const ll &rev) {
 	if (is_white_turn) {
 		white_board ^= mov | rev;
@@ -337,6 +355,7 @@ void put_stone(const ll &mov, const ll &rev) {
 	is_white_turn = !is_white_turn;
 }
 
+// 一手戻す
 void ando(const ll &mov, const ll &rev) {
 	is_white_turn = !is_white_turn;
 
@@ -350,10 +369,12 @@ void ando(const ll &mov, const ll &rev) {
 	}
 }
 
+// 黒（または白）石の数を数える
 int count_stone(const int &stone) {
 	return __popcnt64((stone == BLACK_STONE) ? black_board : white_board);
 }
 
+// ゲームの終了判定と終了処理
 void end_game() {
 	// 両プレイヤーが置けなくなったらゲーム終了
 	ll mov = 0x8000000000000000;
@@ -400,6 +421,7 @@ void end_game() {
 	PlaySoundMem(end_sound, DX_PLAYTYPE_BACK);
 }
 
+// プレイ中にマウスをクリックしたときの処理
 int mouse_input_in_game() {
 	if (GetMouseInput() & MOUSE_INPUT_LEFT) {
 		int mouse_x, mouse_y;
@@ -433,7 +455,9 @@ int mouse_input_in_game() {
 	return 0;
 }
 
+// タイトルでの処理
 void draw_title() {
+	// 描画中は画面に映さないようにする
 	SetDrawScreen(DX_SCREEN_BACK);
 
 	ClearDrawScreen();
@@ -446,9 +470,11 @@ void draw_title() {
 
 	DrawGraph(900, 450, 0, FALSE);
 
+	// 描画した画面を表示
 	ScreenFlip();
 }
 
+// タイトル画面でマウスをクリックしたときの処理
 int mouse_input_in_title() {
 	if (GetMouseInput() & MOUSE_INPUT_LEFT) {
 		int mouse_x, mouse_y;
@@ -475,12 +501,13 @@ int mouse_input_in_title() {
 	return 0;
 }
 
+// タイトルでの処理
 void title() {
 	draw_title();
 
 	for (;;) {
 		if (mouse_input_in_title()) {
-			if (play_game() == -1) {
+			if (play_game() == -1) { // ×ボタンかエンターキーを押すと終了
 				return;
 			}
 			draw_title();
@@ -493,6 +520,7 @@ void title() {
 	}
 }
 
+// AI
 void othello_AI() {
 	ll mov;
 
@@ -508,6 +536,7 @@ void othello_AI() {
 		return;
 	}
 
+	// 空所表の設定
 	stone_empty_place.clear();
 	for (mov = 0x8000000000000000; mov != 0; mov = (mov >> 1) & 0x7fffffffffffffff) {
 		if (!((black_board | white_board) & mov)) {
@@ -516,6 +545,7 @@ void othello_AI() {
 	}
 	stone_empty_place_used.assign(stone_empty_place.size(), false);
 
+	// 終盤なら速さ優先探索へ
 	if (put_count >= FINAL_STAGE_NUM) {
 		mov = speed_preferred_serch(search_depth = 60 - put_count, TRUE, -INF, INF);
 	}
@@ -551,6 +581,7 @@ void othello_AI() {
 	othello_AI();
 }
 
+// nega_max探索
 ll nega_max(const int depth, const bool is_put_before_this, const int alpha, const int beta) {
 	if (depth == 0) return -board_value();
 
@@ -592,6 +623,7 @@ ll nega_max(const int depth, const bool is_put_before_this, const int alpha, con
 	}
 }
 
+// 速さ優先探索
 ll speed_preferred_serch(const int depth, const bool is_put_before_this, const int alpha, const int beta) {
 	if (depth == 0) return -board_value();
 
@@ -615,6 +647,7 @@ ll speed_preferred_serch(const int depth, const bool is_put_before_this, const i
 			}
 		}
 
+		// 着手可能数が少ない順にソート
 		sort(p.begin(), p.end());
 
 		for (auto &x : p) {
@@ -670,6 +703,7 @@ ll speed_preferred_serch(const int depth, const bool is_put_before_this, const i
 	}
 }
 
+// 盤面の価値を返す
 int board_value() {
 	int value = 0;
 	const int VSP = 1, VCP = 40, VFS = 45;	// 評価値の重み
@@ -688,6 +722,7 @@ int board_value() {
 	return value;
 }
 
+// オセロの石の位置によって価値を計算
 int value_stone_place() {
 	int value = 0, c = 0;
 
@@ -714,6 +749,7 @@ int value_stone_place() {
 	return -(value + c);
 }
 
+// 石の置ける位置の数によって価値を計算
 int value_can_put() {
 	int value = 0;
 
@@ -725,6 +761,7 @@ int value_can_put() {
 	else return -value;
 }
 
+// 確定石の数によって価値を計算
 int value_fixed_stone() {
 	ll i;
 	int value = 0;
@@ -837,6 +874,7 @@ int value_fixed_stone() {
 	return -value;
 }
 
+// ゲーム中の処理
 int play_game() {
 	Sleep(500);
 
@@ -846,6 +884,8 @@ int play_game() {
 			Sleep(200);
 			end_game();
 		}
+
+		// ゲーム終了のフラグになってたら終了
 		if (!now_playing_game) {
 			return 0;
 		}
@@ -868,6 +908,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// ユーザーが×ボタンを押しても自動的に終了しないようにする
 	SetWindowUserCloseEnableFlag(FALSE);
 
+	// 絵の読み込み
 	girl_picture = LoadGraph("picture\\smale2.png");
 	flower_flame = LoadGraph("picture\\flower_flame.png");
 	title_picture = LoadGraph("picture\\title.png");
@@ -884,13 +925,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	t_lose = LoadGraph("picture\\t_lose.png");
 	t_draw = LoadGraph("picture\\t_draw.png");
 
+	// 音の読み込み
 	start_sound = LoadSoundMem("sound\\start.mp3");
 	put_sound = LoadSoundMem("sound\\put.mp3");
 	reset_sound = LoadSoundMem("sound\\reset.mp3");
 	end_sound = LoadSoundMem("sound\\end.mp3");
 
+	// フォントの設定
 	font_board_num = CreateFontToHandle(NULL, 24, -1);
 
+	// タイトルへ
 	title();
 
 	DeleteFontToHandle(font_board_num);
