@@ -71,7 +71,7 @@ const int BLACK_STONE = 1;
 const int WHITE_STONE = -1;
 constexpr const int INF = (1 << 30);
 const int SEARCH_LV = 7;			// 探索する手数
-const int FINAL_STAGE_NUM = 41;		// 終盤が始まる手数
+const int FINAL_STAGE_NUM = 43;		// 終盤が始まる手数
 const int value_place[64] = {
 	150, -10, 10,  5,  5, 10, -10, 150,
 	-10,-200,  2,  1,  1,  2,-200, -10,
