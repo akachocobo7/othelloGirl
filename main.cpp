@@ -531,6 +531,7 @@ void othello_AI() {
 	if (!mov) {
 		if (put_count < 60) {
 			girl_text = no_put;
+			is_white_turn = !is_white_turn;
 			draw_board();
 		}
 		return;
