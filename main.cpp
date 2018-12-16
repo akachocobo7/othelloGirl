@@ -901,6 +901,7 @@ int play_game() {
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	SetOutApplicationLogValidFlag(FALSE); // logを出さないようにする
+	SetMainWindowText("othelloGirl");	// タイトル名
 	SetGraphMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32);	// 画面のサイズ
 	ChangeWindowMode(TRUE);			// ウィンドウモードにする
 	SetBackgroundColor(255, 192, 203);
