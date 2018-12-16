@@ -177,7 +177,7 @@ void draw_board() {
 	DrawExtendGraph(900, 100, 1000, 140, reset_picture, FALSE);
 
 	// ‰æ–Ê‰E‰º‚ÉAI‚ª‘Å‚Á‚½êŠ‚ğ•\¦
-	DrawFormatStringToHandle(SCREEN_WIDTH - 400, SCREEN_HEIGHT - 50, GetColor(0, 0, 0), font_board_num, "%s", put_text);
+	// DrawFormatStringToHandle(SCREEN_WIDTH - 400, SCREEN_HEIGHT - 50, GetColor(0, 0, 0), font_board_num, "%s", put_text);
 
 	// •`‰æ‚µ‚½‰æ–Ê‚ğ•\¦
 	ScreenFlip();
